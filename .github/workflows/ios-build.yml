@@ -1,0 +1,44 @@
+name: ios-build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar XcodeGen
+        run: brew install xcodegen
+
+      - name: Gerar projeto Xcode
+        run: xcodegen generate
+
+      - name: Compilar (sem assinatura)
+        run: |
+          xcodebuild \
+            -project HelloApp.xcodeproj \
+            -scheme HelloApp \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: Empacotar .ipa
+        run: |
+          mkdir -p out/Payload
+          cp -R build/Build/Products/Release-iphoneos/HelloApp.app out/Payload/
+          (cd out && zip -qry HelloApp.ipa Payload)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HelloApp-ipa
+          path: out/HelloApp.ipa
+          if-no-files-found: error
